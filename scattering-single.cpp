@@ -20,7 +20,7 @@ void job(size_t thread_id, size_t scattering_num, double b_semi_major_axis) {
     double a_j1 = 5_AU;
     double a_j2 = 15_AU;
 
-    std::fstream post_flyby_file("post-flyby-" + std::to_string(thread_id) + ".txt", std::ios::out);
+    std::fstream post_flyby_file("post-flyby-single-" + std::to_string(thread_id) + ".txt", std::ios::out);
 
     print(post_flyby_file,
           "m0+mj1+mj2 [solar mass], m1 [solar mass], p_hyper [au], e_hyper, inc_hyper [arc], Omega_hyper [arc], "
