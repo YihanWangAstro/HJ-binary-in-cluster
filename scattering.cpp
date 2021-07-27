@@ -14,11 +14,11 @@ double calc_max_impact_parameter(double Q_max, double v_inf, double M_tot) {
     return Q_max * sqrt(1 + 2 * M_tot / v_inf / v_inf / Q_max);
 }
 
-void job(size_t thread_id, size_t scattering_num, double b_semi_major_axis) {
-    double v_inf = 3.66_kms;
-    double r_start = 50 * b_semi_major_axis;
+void job(size_t thread_id, size_t scattering_num, double a_max, double sigma) {
+    double v_inf = sigma * 3.66_kms;
     double a_j1 = 5_AU;
     double a_j2 = 15_AU;
+    double r_start = 50 * (a_max + a_j2);
 
     std::fstream post_flyby_file("post-flyby-" + std::to_string(thread_id) + ".txt", std::ios::out);
 
@@ -56,7 +56,7 @@ void job(size_t thread_id, size_t scattering_num, double b_semi_major_axis) {
         move_particles(jupiter2_orb, jupiter2);
 
         // create binary star
-        auto bin_orb = Elliptic(star1.mass, star2.mass, b_semi_major_axis, 0.0, isotherm, isotherm, isotherm, isotherm);
+        auto bin_orb = Elliptic(star1.mass, star2.mass, random::PowerLaw(-1, 0.1_AU, a_max), random::Uniform(0,1), isotherm, isotherm, isotherm, isotherm);
 
         move_particles(bin_orb, star2);
 
@@ -64,8 +64,8 @@ void job(size_t thread_id, size_t scattering_num, double b_semi_major_axis) {
 
         // create scattering hyperbolic orbit
 
-        double b_max = calc_max_impact_parameter(a_j2 * 2, v_inf, M_tot(star, jupiter1, jupiter2, star1, star2)) +
-                       b_semi_major_axis / 2;
+        double b_max = calc_max_impact_parameter(a_j2 * 3, v_inf, M_tot(star, jupiter1, jupiter2, star1, star2)) +
+                       bin_orb.a / 2;
 
         auto incident_orb =
             scattering::incident_orbit(M_tot(star, jupiter1, jupiter2), M_tot(star1, star2), v_inf, b_max, r_start);
@@ -90,16 +90,25 @@ void job(size_t thread_id, size_t scattering_num, double b_semi_major_axis) {
     }
 }
 
-int main() {
+int main(int argc, char** argv) {
     size_t n = 5000;  // total scattering number
     size_t job_num = 12;
 
     tf::Executor executor;
 
-    double a_binary = 30_AU;
+    double sigma = std::atof(argv[1]);  // velocity dispersion in km/s
+
+    double lowest_n = 100;//lowest number density of cluster (open cluster)
+
+    double inter_particle_dist =
+        pow((PC * PC * PC) / lowest_n, 1.0 / 3);  // inter-particle distance in cluster with number density lowest_n;
+
+    double hs_boundary = consts::G * 0.5_Ms / (4 * sigma * kms * sigma * kms);//hard-soft boundary
+
+    double a_max = std::max(inter_particle_dist, hs_boundary);  // max binary semi-major axis;
 
     for (size_t i = 0; i < job_num; ++i) {
-        executor.silent_async(job, i, n / job_num, a_binary);
+        executor.silent_async(job, i, n / job_num, a_max, sigma);
     }
     executor.wait_for_all();  // wait all jobs to be finished
     return 0;
