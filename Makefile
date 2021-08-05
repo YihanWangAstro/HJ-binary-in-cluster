@@ -10,5 +10,5 @@ flyby-single:
 	$(CXX) $(CXXFLAGS) -o flyby-single scattering-single.cpp
 
 clean:
-	rm -f flyby
+	rm -f flyby flyby-single
 
